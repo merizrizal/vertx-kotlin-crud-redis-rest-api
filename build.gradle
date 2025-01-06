@@ -1,0 +1,106 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
+buildscript {
+    ext.kotlin_version = '1.7.0'
+    ext.vertx_version = '4.3.1'
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+
+    group = 'com.merizrizal'
+    version = '1.0.0'
+}
+
+plugins {
+    id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
+    id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+
+dependencies {
+    // Kotlin
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib'
+
+    // Vertx Core
+    implementation "io.vertx:vertx-core:$vertx_version"
+    implementation "io.vertx:vertx-lang-kotlin:$vertx_version"
+
+    // Vertx Web
+    implementation "io.vertx:vertx-web:$vertx_version"
+
+    // Vertx Rxjava
+    implementation "io.vertx:vertx-rx-java3:$vertx_version"
+    implementation "io.vertx:vertx-rx-java3-gen:$vertx_version"
+
+    // Vertx Redis
+    implementation "io.vertx:vertx-redis-client:$vertx_version"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs += ["${buildDir}/generated/sources/java"]
+        }
+    }
+}
+
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes 'Implementation-Title': rootProject.name
+        attributes 'Implementation-Version': archiveVersion
+        attributes 'Main-Class': 'AppKt'
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+task generateConfig(type: Copy) {
+    from "${projectDir}/src/main/resources/template/Config.java.template"
+    into "${buildDir}/generated/sources/java/config"
+
+    def props = new Properties()
+    file("env.properties").withInputStream { props.load(it) }
+
+    filter(ReplaceTokens, tokens: [
+        'REDIS_HOST': props.getProperty('redis.host'),
+        'REDIS_DATABASE':  props.getProperty('redis.database'),
+        'REDIS_PASSWORD':  props.getProperty('redis.password')
+    ])
+
+    rename 'Config.java.template', 'Config.java'
+}
+
+task cleanAndJar {
+    group = 'build'
+    description = 'Clean and create jar'
+
+    dependsOn clean
+    dependsOn jar
+}
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11
+    }
+
+    dependsOn generateConfig
+}
+
+compileJava {
+    dependsOn generateConfig
+}
