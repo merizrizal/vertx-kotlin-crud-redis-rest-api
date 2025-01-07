@@ -18,8 +18,9 @@ class HttpServerVerticle : AbstractVerticle() {
     private lateinit var redisApi: RedisAPI
 
     override fun start(promise: Promise<Void>) {
+        val config = Config()
         val redisOptions = RedisOptions()
-            .setConnectionString("redis://:${Config.REDIS_PASSWORD}@${Config.REDIS_HOST}/${Config.REDIS_DATABASE}")
+            .setConnectionString("redis://:${config.password}@${config.host}/${config.database}")
 
         Redis(io.vertx.redis.client.Redis.createClient(vertx.delegate, redisOptions))
             .rxConnect()
